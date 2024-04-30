@@ -1,12 +1,6 @@
 local ao = require('ao')
 local json = require('json')
 
---[[
-     Initialize State
-
-     ao.id is equal to the Process.Id
-   ]]
---
 
 if not RpcEndpoint then RpcEndpoint = '' end
 
@@ -14,7 +8,7 @@ if not Network then Network = '' end
 
 if not ChainId then ChainId = '' end 
 
-if not Name then Name = 'elciao instance' end
+if not Name then Name = '' end
 
 if not Admin then Admin = '' end
 
@@ -26,10 +20,6 @@ if not Blocks then Blocks = {} end
 
 if not NodeCreated then NodeCreated = false end
 
---[[
-     Add handlers for each incoming Action defined by the ao Standard Token Specification
-   ]]
---
 
 --[[
      Info
@@ -45,6 +35,7 @@ Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
     Name = Name,
     Admin = Admin,
     LatestBlock = LatestBlock,
+    NodeCreated = NodeCreated,
   })
 end)
 
@@ -54,16 +45,6 @@ Handlers.add('getBlocks', Handlers.utils.hasMatchingTag('Action', 'GetBlocks'), 
     Data = json.encode(Blocks)
   })
 end)
---[[
-     Balance
-   ]]
---
-
-
---[[
-    Mint
-   ]]
---
 
 Handlers.add('setUpNode', Handlers.utils.hasMatchingTag('Action', 'SetUpNode'), function(msg)
   assert( NodeCreated == false, 'Node already created')
@@ -101,16 +82,14 @@ end)
 
 
 Handlers.add('indexBlock', Handlers.utils.hasMatchingTag('Action', 'IndexBlock'), function(msg)
-  assert(type(msg.RpcEndpoint) == 'string', 'Quantity is required!')
-  assert(type(msg.Network) == 'string', 'Address required!')
   assert(type(msg.Data) == 'string', 'MemId is Required!')
   assert(msg.From == Admin, 'invalid caller')
-  assert(tonumber(msg.BlockNumber) > LatestBlock, '')
-  assert(tonumber(msg.Slot) > LatestSlot, '')
+  assert(tonumber(msg.BlockNumber) > tonumber(LatestBlock), '')
+  assert(tonumber(msg.Slot) > tonumber(LatestSlot), '')
   Blocks[msg.BlockNumber] = msg.Data
 
     ao.send({
-      Action = 'Elciao-Notice',
+      Action = 'Elciao-Index-Notice',
       BlockNumber = msg.BlockNumber,
       Slot = msg.Slot
     })

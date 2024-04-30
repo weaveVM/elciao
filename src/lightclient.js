@@ -9,6 +9,8 @@ import {
   bufferToHex,
 } from '@ethereumjs/util'
 
+import { indexBlockOnAo } from "./ao/utils/connect.js";
+
 const config = createChainForkConfig(networksChainConfig.mainnet);
 const logger = getLcLoggerConsole({ logDebug: Boolean(process.env.DEBUG) });
 const api = getClient({ urls: ["https://lodestar-mainnet.chainsafe.io"] }, { config });
@@ -44,7 +46,7 @@ const value = finalityUpdate.beacon[sszCachedPermanentRoot];
     // console.log(bufferToHex(value))
     // console.log(finalityUpdate);
 
-handleLightClientRes(finalityUpdate)
+await handleLightClientRes(finalityUpdate)
   });
 
 }
@@ -60,7 +62,7 @@ handleLightClientRes(finalityUpdate)
 // }
 
 
-function handleLightClientRes(res) {
+async function handleLightClientRes(res) {
 
   const beacon = res.beacon;
 
@@ -89,6 +91,7 @@ const value = beacon[sszCachedPermanentRoot];
   execution.baseFeePerGas = String(execution.baseFeePerGas);
   execution.blobGasUsed = String(execution.blobGasUsed);
   execution.excessBlobGas = String(execution.excessBlobGas);
+
   execution.parentHash = bufferToHex(execution.parentHash);
   execution.feeRecipient = bufferToHex(execution.feeRecipient);
   execution.stateRoot = bufferToHex(execution.stateRoot);
@@ -104,6 +107,8 @@ const value = beacon[sszCachedPermanentRoot];
   res.executionBranch = res.executionBranch.map((v) => bufferToHex(v));
 
   console.log(res);
+
+  return await indexBlockOnAo(res);
   // console.log(beacon);
 }
 
