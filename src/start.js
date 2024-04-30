@@ -11,7 +11,7 @@ import { startServer } from './express-server.js';
 const RPC_URL = process.env.RPC_URL || 'https://eth.llamarpc.com';
 const RPC_URL_WS = process.env.RPC_URL_WS;
 // Metamask doesn't allow same RPC URL for different networks
-const PORT = process.env.CHAIN_ID === '5' ? process.env.PORT;
+const PORT = process.env.PORT ? process.env.PORT : 3000;
 const CHAIN = process.env.CHAIN_ID === '5' ? Chain.Goerli : Chain.Mainnet;
 const POLLING_DELAY = 13 * 1000; //13s
 
