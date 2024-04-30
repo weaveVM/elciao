@@ -3,7 +3,6 @@ import dotenv from "dotenv"
 
 dotenv.config()
 
-console.log(process.env)
 const wallet = JSON.parse(process.env.JWK);
 
 

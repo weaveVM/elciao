@@ -32,7 +32,7 @@ export async function main() {
   await lightclient.start();
 
 
-  lightclient.emitter.on(LightclientEvent.lightClientFinalityHeader, async (finalityUpdate) => {
+  lightclient.emitter.on(LightclientEvent.lightClientOptimisticHeader, async (finalityUpdate) => {
     console.log("LC Emitter:");
 const symbols = Object.getOwnPropertySymbols(finalityUpdate.beacon);
 
