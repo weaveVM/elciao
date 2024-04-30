@@ -1,10 +1,10 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import log from './logger';
-import { VerifyingProvider } from './provider';
-import { getJSONRPCServer } from './json-rpc-server';
+import log from './logger.js';
+import { VerifyingProvider } from './provider.js';
+import { getJSONRPCServer } from './json-rpc-server.js';
 
-export function getExpressApp(provider: VerifyingProvider) {
+export function getExpressApp(provider) {
   const app = express();
   const server = getJSONRPCServer(provider);
 
@@ -33,7 +33,7 @@ export function getExpressApp(provider: VerifyingProvider) {
   return app;
 }
 
-export async function startServer(provider: VerifyingProvider, port: number) {
+export async function startServer(provider, port) {
   const app = await getExpressApp(provider);
   app.listen(port);
   log.info(`RPC Server started at http://localhost:${port}`);

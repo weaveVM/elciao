@@ -2,4 +2,3 @@ node_modules/
 lib/
 yarn-error.log
 .env
-patronum.log

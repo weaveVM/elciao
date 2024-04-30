@@ -1,22 +1,18 @@
 {
-  "name": "@lightclients/patronum",
-  "version": "0.2.0",
-  "description": "Patronum: Ethereum RPC proxy that verifies RPC responses against given trusted block hashes",
+  "name": "elciao",
+  "version": "0.0.1",
+  "description": "",
   "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shresthagrawal/verifying-eth-rpc-proxy.git"
+    "url": "git+https://github.com/weavevm/elciao.git"
   },
-  "author": "Shresth Agrawal <shresthagrawal.31@gmail.com>",
+  "author": "charmful0x",
   "license": "MIT",
   "private": false,
   "scripts": {
-    "build": "tsc",
-    "prepare": "npm run build && husky install",
-    "test": "jest",
-    "prettier:check": "npx prettier -c .",
-    "prettier:fix": "npx prettier -w ."
+    "start": "node ./src/start.js"
   },
   "dependencies": {
     "@ethereumjs/block": "^4.3.0",
@@ -26,6 +22,10 @@
     "@ethereumjs/tx": "^4.2.0",
     "@ethereumjs/util": "^8.1.0",
     "@ethereumjs/vm": "^6.5.0",
+    "@lodestar/api": "^1.18.0",
+    "@lodestar/config": "^1.18.0",
+    "@lodestar/light-client": "^1.18.0",
+    "@permaweb/aoconnect": "^0.0.53",
     "axios": "0.27.2",
     "json-rpc-2.0": "1.4.1",
     "lodash": "4.17.21",
@@ -52,20 +52,14 @@
     "typescript": "^4.6.3"
   },
   "bugs": {
-    "url": "https://github.com/shresthagrawal/verifying-eth-rpc-proxy/issues"
+    "url": "https://github.com/weavevm/elciao/issues"
   },
-  "homepage": "https://github.com/shresthagrawal/verifying-eth-rpc-proxy#readme",
-  "directories": {
-    "lib": "lib",
-    "test": "tests"
-  },
+  "homepage": "https://github.com/weavevm/elciao#readme",
   "keywords": [
     "lightclient",
     "ethereum",
     "pos",
-    "rpc"
-  ],
-  "lint-staged": {
-    "*.{ts,js,md}": "prettier --write"
-  }
+    "rpc",
+    "ao"
+  ]
 }

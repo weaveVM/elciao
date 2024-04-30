@@ -1,6 +1,2 @@
 node_modules/
-yarn-error.log
 .env
-tests/
-.github/
-lib/

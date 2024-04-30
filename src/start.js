@@ -1,16 +1,17 @@
 // TODO: currently its just a demo script, make it a test
-import log from '../src/logger';
+import log from './logger.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 import Web3 from 'web3';
 import { Chain } from '@ethereumjs/common';
-import { VerifyingProvider, startServer } from '../src';
+import { VerifyingProvider } from './provider.js';
+import { startServer } from './express-server.js';
 
-const RPC_URL = process.env.RPC_URL || '';
+const RPC_URL = process.env.RPC_URL || 'https://eth.llamarpc.com';
 const RPC_URL_WS = process.env.RPC_URL_WS;
 // Metamask doesn't allow same RPC URL for different networks
-const PORT = process.env.CHAIN_ID === '5' ? 8547 : 8546;
+const PORT = process.env.CHAIN_ID === '5' ? process.env.PORT;
 const CHAIN = process.env.CHAIN_ID === '5' ? Chain.Goerli : Chain.Mainnet;
 const POLLING_DELAY = 13 * 1000; //13s
 
