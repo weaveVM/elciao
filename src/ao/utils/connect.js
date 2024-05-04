@@ -1,10 +1,11 @@
 import { dryrun, createDataItemSigner, message } from "@permaweb/aoconnect";
-import dotenv from "dotenv"
+import log from "../../logger.js";
 
-dotenv.config()
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const wallet = JSON.parse(process.env.JWK);
-
 
 export async function indexBlockOnAo(obj) {
   try {
@@ -12,14 +13,16 @@ export async function indexBlockOnAo(obj) {
 
     if (isCreated) {
       const mid = await indexNewBlock(obj);
-      console.log(`index mid: ${mid}`);
+      log.info(
+        `Indexing a new block ${obj.execution.blockNumber} | AO mid: ${mid}`,
+      );
       return mid;
     }
 
     const mid = await createNode(obj);
-    console.log(`creation mid: ${mid}`);
+    log.info(`Initiating the AO process | AO mid: ${mid}`);
     return mid;
-  } catch(error) {
+  } catch (error) {
     console.log(error);
     return null;
   }
@@ -44,18 +47,15 @@ async function createNode(obj) {
         { name: "Name", value: process.env.SETUP_NAME },
       ],
     });
-
-    console.log(messageId);
     return messageId;
   } catch (error) {
     console.log(error);
-    return  false;
+    return false;
   }
 }
 
 async function indexNewBlock(obj) {
   try {
-    console.log(obj.beacon.slot, obj.execution.blockNumber)
     const messageId = await message({
       process: process.env.PROCESS_ID,
       signer: createDataItemSigner(wallet),
@@ -70,7 +70,6 @@ async function indexNewBlock(obj) {
       ],
     });
 
-    console.log(messageId);
     return messageId;
   } catch (error) {
     console.log(error);
@@ -85,9 +84,7 @@ async function getProcessInfo() {
       tags: [{ name: "Action", value: "Info" }],
     });
 
-    console.log(tx.Messages[0].Tags)
-    return tx.Messages[0].Tags
-
+    return tx.Messages[0].Tags;
   } catch (error) {
     console.log(error);
     return [];
@@ -101,14 +98,10 @@ async function isSetup() {
       tags: [{ name: "Action", value: "Info" }],
     });
 
-    const res = tx.Messages[0].Tags.find((tag) => tag.name === "NodeCreated")
-    console.log(`is setup:${ res.value}`)
+    const res = tx.Messages[0].Tags.find((tag) => tag.name === "NodeCreated");
     return res.value;
   } catch (error) {
     console.log(error);
     return false;
   }
 }
-
-
-// mintFor()

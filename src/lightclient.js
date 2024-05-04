@@ -9,22 +9,21 @@ import {
   getLcLoggerConsole,
 } from "@lodestar/light-client/utils";
 import { toHexString } from "@chainsafe/ssz";
-
 import { bufferToHex } from "@ethereumjs/util";
-
 import { toBuffer, keccak256 } from "ethereumjs-util";
-
 import { indexBlockOnAo } from "./ao/utils/connect.js";
+import { spawnProcess } from "./ao/utils/setup.js";
+import log from "./logger.js";
+import { BEACON_RPC_URL } from "./constants.js";
 
 const config = createChainForkConfig(networksChainConfig.mainnet);
 const logger = getLcLoggerConsole({ logDebug: Boolean(process.env.DEBUG) });
 const api = getClient(
-  { urls: ["https://lodestar-mainnet.chainsafe.io"] },
+  { urls: [BEACON_RPC_URL] },
   { config },
 );
 
 export async function main() {
-  console.log("lightclient initiated");
   const lightclient = await Lightclient.initializeFromCheckpointRoot({
     config,
     logger,
@@ -37,13 +36,13 @@ export async function main() {
     },
   });
 
+  await checkNodeSetup();
   await lightclient.start();
 
-  console.log("henlo"); // lightClientOptimisticHeader    lightClientFinalityHeader
   lightclient.emitter.on(
     LightclientEvent.lightClientOptimisticHeader,
     async (finalityUpdate) => {
-      console.log("LC Emitter:");
+      log.info(`Received a new block: ${finalityUpdate.execution.blockNumber}`);
 
       const blockRes = await lightclient["transport"]["api"].beacon.getBlockV2(
         Number(finalityUpdate.beacon.slot),
@@ -56,73 +55,20 @@ export async function main() {
   );
 }
 
-async function handleLightClientRes(res) {
-  const beacon = res.beacon;
-
-  const symbols = Object.getOwnPropertySymbols(beacon);
-
-  // Find the specific symbol based on a characteristic, here assuming it's the only one or the first
-  const sszCachedPermanentRoot = symbols[0]; // This would be adjusted based on actual position if multiple symbols
-
-  // Now access the value
-  const value = beacon[sszCachedPermanentRoot];
-  beacon.slot = String(beacon.slot);
-  beacon.proposerIndex = String(beacon.proposerIndex);
-  // Converting Uint8Array properties to hex
-  beacon.parentRoot = bufferToHex(beacon.parentRoot);
-  beacon.stateRoot = bufferToHex(beacon.stateRoot);
-  beacon.bodyRoot = bufferToHex(beacon.bodyRoot);
-  beacon["ssz_cached_permanent_root"] = bufferToHex(value);
-  delete beacon[sszCachedPermanentRoot];
-
-  // Execution section
-  const execution = res.execution;
-  execution.blockNumber = String(execution.blockNumber);
-  execution.gasLimit = String(execution.gasLimit);
-  execution.gasUsed = String(execution.gasUsed);
-  execution.timestamp = String(execution.timestamp);
-  execution.baseFeePerGas = String(execution.baseFeePerGas);
-  execution.blobGasUsed = String(execution.blobGasUsed);
-  execution.excessBlobGas = String(execution.excessBlobGas);
-
-  execution.parentHash = bufferToHex(execution.parentHash);
-  execution.feeRecipient = bufferToHex(execution.feeRecipient);
-  execution.stateRoot = bufferToHex(execution.stateRoot);
-  execution.receiptsRoot = bufferToHex(execution.receiptsRoot);
-  execution.logsBloom = bufferToHex(execution.logsBloom);
-  execution.prevRandao = bufferToHex(execution.prevRandao);
-  execution.blockHash = bufferToHex(execution.blockHash);
-  execution.transactionsRoot = bufferToHex(execution.transactionsRoot);
-  execution.withdrawalsRoot = bufferToHex(execution.withdrawalsRoot);
-  execution.extraData = bufferToHex(execution.extraData);
-
-  // Execution Branch section
-  res.executionBranch = res.executionBranch.map((v) => bufferToHex(v));
-
-  console.log(res);
-
-  return await indexBlockOnAo(res);
-  // console.log(beacon);
-}
-
 async function handleBlockV2(finalityUpdate, res) {
   const beacon = finalityUpdate.beacon;
 
   const symbols = Object.getOwnPropertySymbols(beacon);
-
-
   const sszCachedPermanentRoot = symbols[0];
-
   const value = beacon[sszCachedPermanentRoot];
+
   beacon.slot = String(beacon.slot);
   beacon.proposerIndex = String(beacon.proposerIndex);
-  // Converting Uint8Array properties to hex
   beacon.parentRoot = bufferToHex(beacon.parentRoot);
   beacon.stateRoot = bufferToHex(beacon.stateRoot);
   beacon.bodyRoot = bufferToHex(beacon.bodyRoot);
   beacon["ssz_cached_permanent_root"] = bufferToHex(value);
   delete beacon[sszCachedPermanentRoot];
-  // Execution section
   const execution = res;
   execution.blockNumber = String(execution.blockNumber);
   execution.gasLimit = String(execution.gasLimit);
@@ -143,8 +89,6 @@ async function handleBlockV2(finalityUpdate, res) {
   execution.withdrawalsRoot = bufferToHex(execution.withdrawalsRoot);
   execution.extraData = bufferToHex(execution.extraData);
 
-  // Execution Branch section
-
   for (const v of execution.withdrawals) {
     v.amount = String(v.amount);
     v.address = bufferToHex(v.address);
@@ -155,11 +99,54 @@ async function handleBlockV2(finalityUpdate, res) {
   );
 
   finalityUpdate.execution = execution;
-  console.log(finalityUpdate);
-  console.log(JSON.stringify(finalityUpdate).length);
 
   return await indexBlockOnAo(finalityUpdate);
-  // console.log(beacon);
+}
+
+async function checkNodeSetup() {
+  try {
+    const ready =
+      process.env.SETUP_RPC_URL &&
+      process.env.JWK &&
+      process.env.SETUP_ADMIN &&
+      process.env.PROCESS_ID;
+
+    if (ready) {
+      return;
+    }
+
+    const readyToDeploy =
+      process.env.SETUP_RPC_URL &&
+      process.env.JWK &&
+      process.env.SETUP_ADMIN &&
+      !process.env.PROCESS_ID;
+
+    if (readyToDeploy) {
+      await spawnProcess();
+    }
+
+    const envSetUp =
+      process.env.SETUP_NAME &&
+      process.env.SETUP_RPC_URL &&
+      process.env.SETUP_CHAIN_ID &&
+      process.env.JWK &&
+      process.env.SETUP_NETWORK;
+
+    while (!envSetUp) {
+      log.error(
+        `\nPlease setup the .env file with the necessary data. Idling light-client for 60s !\n`,
+      );
+      await sleep(60000);
+    }
+
+    return;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 main();

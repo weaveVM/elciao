@@ -1,8 +1,8 @@
-import _ from 'lodash';
-import Web3 from 'web3';
-import { Trie } from '@ethereumjs/trie';
-import rlp from 'rlp';
-import { Common, Chain, Hardfork } from '@ethereumjs/common';
+import _ from "lodash";
+import Web3 from "web3";
+import { Trie } from "@ethereumjs/trie";
+import rlp from "rlp";
+import { Common, Chain, Hardfork } from "@ethereumjs/common";
 import {
   Address,
   Account,
@@ -12,41 +12,54 @@ import {
   TypeOutput,
   setLengthLeft,
   KECCAK256_NULL_S,
-} from '@ethereumjs/util';
-import { VM } from '@ethereumjs/vm';
-import { BlockHeader, Block } from '@ethereumjs/block';
-import { Blockchain } from '@ethereumjs/blockchain';
-import { TransactionFactory } from '@ethereumjs/tx';
-import { InternalError, InvalidParamsError } from './errors.js';
-import log from './logger.js';
+} from "@ethereumjs/util";
+import { VM } from "@ethereumjs/vm";
+import { BlockHeader, Block } from "@ethereumjs/block";
+import { Blockchain } from "@ethereumjs/blockchain";
+import { TransactionFactory } from "@ethereumjs/tx";
+import { InternalError, InvalidParamsError } from "./errors.js";
+import log from "./logger.js";
 import {
   ZERO_ADDR,
   MAX_BLOCK_HISTORY,
   MAX_BLOCK_FUTURE,
   DEFAULT_BLOCK_PARAMETER,
-} from './constants.js';
+} from "./constants.js";
 import {
   headerDataFromWeb3Response,
   blockDataFromWeb3Response,
   toJSONRPCBlock,
-} from './utils.js';
-import { RPC } from './rpc.js';
+} from "./utils.js";
+import { RPC } from "./rpc.js";
 
-const bigIntToHex = n => '0x' + BigInt(n).toString(16);
+const bigIntToHex = (n) => "0x" + BigInt(n).toString(16);
 const emptyAccountSerialize = new Account().serialize();
 
-export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = Chain.Mainnet) {
+export function VerifyingProvider(
+  providerURL,
+  blockNumber,
+  blockHash,
+  chain = Chain.Mainnet,
+) {
   this.rpc = new RPC({ URL: providerURL });
-  this.common = new Common({ chain, hardfork: chain === Chain.Mainnet ? Hardfork.Shanghai : undefined });
+  this.common = new Common({
+    chain,
+    hardfork: chain === Chain.Mainnet ? Hardfork.Shanghai : undefined,
+  });
   this.latestBlockNumber = BigInt(blockNumber);
   this.blockHashes = { [bigIntToHex(blockNumber)]: blockHash };
   this.blockPromises = {};
   this.blockHeaders = {};
 
-  this.update = function(blockHash, blockNumber) {
+  this.update = function (blockHash, blockNumber) {
     const blockNumberHex = bigIntToHex(blockNumber);
-    if (blockNumberHex in this.blockHashes && this.blockHashes[blockNumberHex] !== blockHash) {
-      log.warn('Overriding an existing verified blockhash. Possibly the chain had a reorg');
+    if (
+      blockNumberHex in this.blockHashes &&
+      this.blockHashes[blockNumberHex] !== blockHash
+    ) {
+      log.warn(
+        "Overriding an existing verified blockhash. Possibly the chain had a reorg",
+      );
     }
     const latestBlockNumber = this.latestBlockNumber;
     this.latestBlockNumber = blockNumber;
@@ -61,71 +74,106 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     }
   };
 
-  this.getBalance = async function(addressHex, blockOpt = DEFAULT_BLOCK_PARAMETER) {
+  this.getBalance = async function (
+    addressHex,
+    blockOpt = DEFAULT_BLOCK_PARAMETER,
+  ) {
     const header = await this.getBlockHeader(blockOpt);
     const address = Address.fromString(addressHex);
     const { result: proof, success } = await this.rpc.request({
-      method: 'eth_getProof',
-      params: [addressHex, [], bigIntToHex(header.number)]
+      method: "eth_getProof",
+      params: [addressHex, [], bigIntToHex(header.number)],
     });
     if (!success) {
       throw new InternalError(`RPC request failed`);
     }
-    const isAccountCorrect = await this.verifyProof(address, [], header.stateRoot, proof);
+    const isAccountCorrect = await this.verifyProof(
+      address,
+      [],
+      header.stateRoot,
+      proof,
+    );
     if (!isAccountCorrect) {
-      throw new InternalError('Invalid account proof provided by the RPC');
+      throw new InternalError("Invalid account proof provided by the RPC");
     }
     return bigIntToHex(proof.balance);
   };
 
-  this.blockNumber = function() {
+  this.blockNumber = function () {
     return bigIntToHex(this.latestBlockNumber);
   };
 
-  this.chainId = function() {
+  this.chainId = function () {
     return bigIntToHex(this.common.chainId());
   };
 
-  this.getCode = async function(addressHex, blockOpt = DEFAULT_BLOCK_PARAMETER) {
+  this.getCode = async function (
+    addressHex,
+    blockOpt = DEFAULT_BLOCK_PARAMETER,
+  ) {
     const header = await this.getBlockHeader(blockOpt);
     const res = await this.rpc.requestBatch([
-      { method: 'eth_getProof', params: [addressHex, [], bigIntToHex(header.number)] },
-      { method: 'eth_getCode', params: [addressHex, bigIntToHex(header.number)] }
+      {
+        method: "eth_getProof",
+        params: [addressHex, [], bigIntToHex(header.number)],
+      },
+      {
+        method: "eth_getCode",
+        params: [addressHex, bigIntToHex(header.number)],
+      },
     ]);
-    if (res.some(r => !r.success)) {
+    if (res.some((r) => !r.success)) {
       throw new InternalError(`RPC request failed`);
     }
     const [accountProof, code] = res;
     const address = Address.fromString(addressHex);
-    const isAccountCorrect = await this.verifyProof(address, [], header.stateRoot, accountProof);
+    const isAccountCorrect = await this.verifyProof(
+      address,
+      [],
+      header.stateRoot,
+      accountProof,
+    );
     if (!isAccountCorrect) {
       throw new InternalError(`invalid account proof provided by the RPC`);
     }
-    const isCodeCorrect = await this.verifyCodeHash(code, accountProof.codeHash);
+    const isCodeCorrect = await this.verifyCodeHash(
+      code,
+      accountProof.codeHash,
+    );
     if (!isCodeCorrect) {
-      throw new InternalError(`code provided by the RPC doesn't match the account's codeHash`);
+      throw new InternalError(
+        `code provided by the RPC doesn't match the account's codeHash`,
+      );
     }
     return code;
   };
 
-  this.getTransactionCount = async function(addressHex, blockOpt = DEFAULT_BLOCK_PARAMETER) {
+  this.getTransactionCount = async function (
+    addressHex,
+    blockOpt = DEFAULT_BLOCK_PARAMETER,
+  ) {
     const header = await this.getBlockHeader(blockOpt);
     const address = Address.fromString(addressHex);
     const { result: proof, success } = await this.rpc.request({
-      method: 'eth_getProof',
-      params: [addressHex, [], bigIntToHex(header.number)]
+      method: "eth_getProof",
+      params: [addressHex, [], bigIntToHex(header.number)],
     });
     if (!success) {
       throw new InternalError(`RPC request failed`);
     }
-    const isAccountCorrect = await this.verifyProof(address, [], header.stateRoot, proof);
+    const isAccountCorrect = await this.verifyProof(
+      address,
+      [],
+      header.stateRoot,
+      proof,
+    );
     if (!isAccountCorrect) {
       throw new InternalError(`invalid account proof provided by the RPC`);
     }
     return bigIntToHex(proof.nonce.toString());
   };
 
-  this.call = async function(transaction, blockOpt = DEFAULT_BLOCK_PARAMETER) {
+  this.call = async function (transaction, blockOpt = DEFAULT_BLOCK_PARAMETER) {
     try {
       this.validateTx(transaction);
     } catch (e) {
@@ -159,7 +207,10 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     }
   };
 
-  this.estimateGas = async function(transaction, blockOpt = DEFAULT_BLOCK_PARAMETER) {
+  this.estimateGas = async function (
+    transaction,
+    blockOpt = DEFAULT_BLOCK_PARAMETER,
+  ) {
     try {
       this.validateTx(transaction);
     } catch (e) {
@@ -170,12 +221,20 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
       transaction.gas = bigIntToHex(header.gasLimit);
     }
     const txType = BigInt(
-      transaction.maxFeePerGas || transaction.maxPriorityFeePerGas ? 2 : transaction.accessList ? 1 : 0
+      transaction.maxFeePerGas || transaction.maxPriorityFeePerGas
+        ? 2
+        : transaction.accessList
+          ? 1
+          : 0,
     );
     if (txType === BigInt(2)) {
-      transaction.maxFeePerGas = transaction.maxFeePerGas || bigIntToHex(header.baseFeePerGas);
+      transaction.maxFeePerGas =
+        transaction.maxFeePerGas || bigIntToHex(header.baseFeePerGas);
     } else {
-      if (transaction.gasPrice === undefined || BigInt(transaction.gasPrice) === BigInt(0)) {
+      if (
+        transaction.gasPrice === undefined ||
+        BigInt(transaction.gasPrice) === BigInt(0)
+      ) {
         transaction.gasPrice = bigIntToHex(header.baseFeePerGas);
       }
     }
@@ -184,9 +243,14 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
       type: bigIntToHex(txType),
       gasLimit: transaction.gas,
     };
-    const tx = TransactionFactory.fromTxData(txData, { common: this.common, freeze: false });
+    const tx = TransactionFactory.fromTxData(txData, {
+      common: this.common,
+      freeze: false,
+    });
     const vm = await this.getVM(transaction, header);
-    const from = transaction.from ? Address.fromString(transaction.from) : Address.zero();
+    const from = transaction.from
+      ? Address.fromString(transaction.from)
+      : Address.zero();
     tx.getSenderAddress = () => from;
     try {
       const { totalGasSpent } = await vm.runTx({
@@ -202,33 +266,35 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     }
   };
 
-  this.getBlockByHash = async function(blockHash, includeTransactions) {
+  this.getBlockByHash = async function (blockHash, includeTransactions) {
     const header = await this.getBlockHeaderByHash(blockHash);
     const block = await this.getBlock(header);
     return toJSONRPCBlock(block, BigInt(0), [], includeTransactions);
   };
 
-  this.getBlockByNumber = async function(blockOpt, includeTransactions) {
+  this.getBlockByNumber = async function (blockOpt, includeTransactions) {
     const header = await this.getBlockHeader(blockOpt);
     const block = await this.getBlock(header);
     return toJSONRPCBlock(block, BigInt(0), [], includeTransactions);
   };
 
-  this.sendRawTransaction = async function(signedTx) {
+  this.sendRawTransaction = async function (signedTx) {
     const { success } = await this.rpc.request({
-      method: 'eth_sendRawTransaction',
+      method: "eth_sendRawTransaction",
       params: [signedTx],
     });
     if (!success) {
       throw new InternalError(`RPC request failed`);
     }
-    const tx = TransactionFactory.fromSerializedData(toBuffer(signedTx), { common: this.common });
+    const tx = TransactionFactory.fromSerializedData(toBuffer(signedTx), {
+      common: this.common,
+    });
     return bufferToHex(tx.hash());
   };
 
-  this.getTransactionReceipt = async function(txHash) {
+  this.getTransactionReceipt = async function (txHash) {
     const { result: receipt, success } = await this.rpc.request({
-      method: 'eth_getTransactionReceipt',
+      method: "eth_getTransactionReceipt",
       params: [txHash],
     });
     if (!(success && receipt)) {
@@ -236,9 +302,11 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     }
     const header = await this.getBlockHeader(receipt.blockNumber);
     const block = await this.getBlock(header);
-    const index = block.transactions.findIndex(tx => bufferToHex(tx.hash()) === txHash.toLowerCase());
+    const index = block.transactions.findIndex(
+      (tx) => bufferToHex(tx.hash()) === txHash.toLowerCase(),
+    );
     if (index === -1) {
-      throw new InternalError('the receipt provided by the RPC is invalid');
+      throw new InternalError("the receipt provided by the RPC is invalid");
     }
     const tx = block.transactions[index];
     return {
@@ -248,31 +316,37 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
       blockNumber: bigIntToHex(block.header.number),
       from: tx.getSenderAddress().toString(),
       to: tx.to?.toString() ?? null,
-      cumulativeGasUsed: '0x0',
-      effectiveGasPrice: '0x0',
-      gasUsed: '0x0',
+      cumulativeGasUsed: "0x0",
+      effectiveGasPrice: "0x0",
+      gasUsed: "0x0",
       contractAddress: null,
       logs: [],
-      logsBloom: '0x0',
-      status: BigInt(receipt.status) ? '0x1' : '0x0', // unverified
+      logsBloom: "0x0",
+      status: BigInt(receipt.status) ? "0x1" : "0x0", // unverified
     };
   };
 
-  this.validateTx = function(tx) {
+  this.validateTx = function (tx) {
     if (tx.gasPrice !== undefined && tx.maxFeePerGas !== undefined) {
-      throw new Error('Cannot send both gasPrice and maxFeePerGas params');
+      throw new Error("Cannot send both gasPrice and maxFeePerGas params");
     }
     if (tx.gasPrice !== undefined && tx.maxPriorityFeePerGas !== undefined) {
-      throw new Error('Cannot send both gasPrice and maxPriorityFeePerGas');
+      throw new Error("Cannot send both gasPrice and maxPriorityFeePerGas");
     }
-    if (tx.maxFeePerGas !== undefined && tx.maxPriorityFeePerGas !== undefined && BigInt(tx.maxPriorityFeePerGas) > BigInt(tx.maxFeePerGas)) {
-      throw new Error(`maxPriorityFeePerGas (${tx.maxPriorityFeePerGas.toString()}) is bigger than maxFeePerGas (${tx.maxFeePerGas.toString()})`);
+    if (
+      tx.maxFeePerGas !== undefined &&
+      tx.maxPriorityFeePerGas !== undefined &&
+      BigInt(tx.maxPriorityFeePerGas) > BigInt(tx.maxFeePerGas)
+    ) {
+      throw new Error(
+        `maxPriorityFeePerGas (${tx.maxPriorityFeePerGas.toString()}) is bigger than maxFeePerGas (${tx.maxFeePerGas.toString()})`,
+      );
     }
   };
 
-  this.getBlock = async function(header) {
+  this.getBlock = async function (header) {
     const { result: blockInfo, success } = await this.rpc.request({
-      method: 'eth_getBlockByNumber',
+      method: "eth_getBlockByNumber",
       params: [bigIntToHex(header.number), true],
     });
     if (!success) {
@@ -281,22 +355,26 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     const blockData = blockDataFromWeb3Response(blockInfo);
     const block = Block.fromBlockData(blockData, { common: this.common });
     if (!block.header.hash().equals(header.hash())) {
-      throw new InternalError(`BN(${header.number}): blockhash does not match the blockData provided by the RPC`);
+      throw new InternalError(
+        `BN(${header.number}): blockhash does not match the blockData provided by the RPC`,
+      );
     }
     if (!(await block.validateTransactionsTrie())) {
-      throw new InternalError(`transactionTree doesn't match the transactions provided by the RPC`);
+      throw new InternalError(
+        `transactionTree doesn't match the transactions provided by the RPC`,
+      );
     }
     return block;
   };
 
-  this.getBlockHeader = async function(blockOpt) {
+  this.getBlockHeader = async function (blockOpt) {
     const blockNumber = this.getBlockNumberByBlockOpt(blockOpt);
     await this.waitForBlockNumber(blockNumber);
     const blockHash = await this.getBlockHash(blockNumber);
     return this.getBlockHeaderByHash(blockHash);
   };
 
-  this.waitForBlockNumber = async function(blockNumber) {
+  this.waitForBlockNumber = async function (blockNumber) {
     if (blockNumber <= this.latestBlockNumber) return;
     log.debug(`waiting for blockNumber ${blockNumber}`);
     const blockNumberHex = bigIntToHex(blockNumber);
@@ -308,23 +386,28 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     return this.blockPromises[blockNumberHex].promise;
   };
 
-  this.getBlockNumberByBlockOpt = function(blockOpt) {
-    if (typeof blockOpt === 'string' && ['pending', 'earliest', 'finalized', 'safe'].includes(blockOpt)) {
+  this.getBlockNumberByBlockOpt = function (blockOpt) {
+    if (
+      typeof blockOpt === "string" &&
+      ["pending", "earliest", "finalized", "safe"].includes(blockOpt)
+    ) {
       throw new InvalidParamsError('"pending" is not yet supported');
-    } else if (blockOpt === 'latest') {
+    } else if (blockOpt === "latest") {
       return this.latestBlockNumber;
     } else {
       const blockNumber = BigInt(blockOpt);
       if (blockNumber > this.latestBlockNumber + MAX_BLOCK_FUTURE) {
-        throw new InvalidParamsError('specified block is too far in future');
+        throw new InvalidParamsError("specified block is too far in future");
       } else if (blockNumber + MAX_BLOCK_HISTORY < this.latestBlockNumber) {
-        throw new InvalidParamsError(`specified block cannot be older than ${MAX_BLOCK_HISTORY}`);
+        throw new InvalidParamsError(
+          `specified block cannot be older than ${MAX_BLOCK_HISTORY}`,
+        );
       }
       return blockNumber;
     }
   };
 
-  this.getVMCopy = async function() {
+  this.getVMCopy = async function () {
     if (this.vm === null) {
       const blockchain = await Blockchain.create({ common: this.common });
       blockchain.getBlock = async (blockId) => {
@@ -336,56 +419,89 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     return await this.vm.copy();
   };
 
-  this.getVM = async function(tx, header) {
+  this.getVM = async function (tx, header) {
     const _tx = {
       to: tx.to,
       from: tx.from ? tx.from : ZERO_ADDR,
       data: tx.data,
       value: tx.value,
-      gasPrice: '0x0',
-      gas: tx.gas ? tx.gas : bigIntToHex(header.gasLimit)
+      gasPrice: "0x0",
+      gas: tx.gas ? tx.gas : bigIntToHex(header.gasLimit),
     };
     const { result, success } = await this.rpc.request({
-      method: 'eth_createAccessList',
-      params: [_tx, bigIntToHex(header.number)]
+      method: "eth_createAccessList",
+      params: [_tx, bigIntToHex(header.number)],
     });
     if (!success) {
-      throw new InternalError('RPC request failed');
+      throw new InternalError("RPC request failed");
     }
     const accessList = result.accessList;
     accessList.push({ address: _tx.from, storageKeys: [] });
-    if (_tx.to && !accessList.some(a => a.address.toLowerCase() === _tx.to)) {
+    if (_tx.to && !accessList.some((a) => a.address.toLowerCase() === _tx.to)) {
       accessList.push({ address: _tx.to, storageKeys: [] });
     }
     const vm = await this.getVMCopy();
     await vm.stateManager.checkpoint();
-    const requests = accessList.flatMap(access => [
-      { method: 'eth_getProof', params: [access.address, access.storageKeys, bigIntToHex(header.number)] },
-      { method: 'eth_getCode', params: [access.address, bigIntToHex(header.number)] }
+    const requests = accessList.flatMap((access) => [
+      {
+        method: "eth_getProof",
+        params: [
+          access.address,
+          access.storageKeys,
+          bigIntToHex(header.number),
+        ],
+      },
+      {
+        method: "eth_getCode",
+        params: [access.address, bigIntToHex(header.number)],
+      },
     ]);
     const rawResponse = await this.rpc.requestBatch(requests);
-    if (rawResponse.some(r => !r.success)) {
-      throw new InternalError('RPC request failed');
+    if (rawResponse.some((r) => !r.success)) {
+      throw new InternalError("RPC request failed");
     }
-    const responses = _.chunk(rawResponse.map(r => r.result), 2);
+    const responses = _.chunk(
+      rawResponse.map((r) => r.result),
+      2,
+    );
     responses.forEach(([accountProof, code], i) => {
       const { address: addressHex, storageKeys } = accessList[i];
-      const { nonce, balance, codeHash, storageProof: storageAccesses } = accountProof;
+      const {
+        nonce,
+        balance,
+        codeHash,
+        storageProof: storageAccesses,
+      } = accountProof;
       const address = Address.fromString(addressHex);
-      const isAccountCorrect = this.verifyProof(address, storageKeys, header.stateRoot, accountProof);
+      const isAccountCorrect = this.verifyProof(
+        address,
+        storageKeys,
+        header.stateRoot,
+        accountProof,
+      );
       if (!isAccountCorrect) {
-        throw new InternalError('invalid account proof provided by the RPC');
+        throw new InternalError("invalid account proof provided by the RPC");
       }
       const isCodeCorrect = this.verifyCodeHash(code, codeHash);
       if (!isCodeCorrect) {
-        throw new InternalError("code provided by the RPC doesn't match the account's codeHash");
+        throw new InternalError(
+          "code provided by the RPC doesn't match the account's codeHash",
+        );
       }
-      const account = Account.fromAccountData({ nonce: BigInt(nonce), balance: BigInt(balance), codeHash });
+      const account = Account.fromAccountData({
+        nonce: BigInt(nonce),
+        balance: BigInt(balance),
+        codeHash,
+      });
       vm.stateManager.putAccount(address, account);
       storageAccesses.forEach(async (access) => {
-        vm.stateManager.putContractStorage(address, setLengthLeft(toBuffer(access.key), 32), setLengthLeft(toBuffer(access.value), 32));
+        vm.stateManager.putContractStorage(
+          address,
+          setLengthLeft(toBuffer(access.key), 32),
+          setLengthLeft(toBuffer(access.value), 32),
+        );
       });
-      if (code !== '0x') {
+      if (code !== "0x") {
         vm.stateManager.putContractCode(address, toBuffer(code));
       }
     });
@@ -393,9 +509,9 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
     return vm;
   };
 
-  this.getBlockHash = async function(blockNumber) {
+  this.getBlockHash = async function (blockNumber) {
     if (blockNumber > this.latestBlockNumber) {
-      throw new Error('cannot return blockhash for a blocknumber in future');
+      throw new Error("cannot return blockhash for a blocknumber in future");
     }
     let lastVerifiedBlockNumber = this.latestBlockNumber;
     while (lastVerifiedBlockNumber > blockNumber) {
@@ -404,51 +520,79 @@ export function VerifyingProvider(providerURL, blockNumber, blockHash, chain = C
       lastVerifiedBlockNumber--;
       const parentBlockHash = bufferToHex(header.parentHash);
       const parentBlockNumberHex = bigIntToHex(lastVerifiedBlockNumber);
-      if (parentBlockNumberHex in this.blockHashes && this.blockHashes[parentBlockNumberHex] !== parentBlockHash) {
-        log.warn('Overriding an existing verified blockhash. Possibly the chain had a reorg');
+      if (
+        parentBlockNumberHex in this.blockHashes &&
+        this.blockHashes[parentBlockNumberHex] !== parentBlockHash
+      ) {
+        log.warn(
+          "Overriding an existing verified blockhash. Possibly the chain had a reorg",
+        );
       }
       this.blockHashes[parentBlockNumberHex] = parentBlockHash;
     }
     return this.blockHashes[bigIntToHex(blockNumber)];
   };
 
-  this.getBlockHeaderByHash = async function(blockHash) {
+  this.getBlockHeaderByHash = async function (blockHash) {
     if (!this.blockHeaders[blockHash]) {
-      const { result: blockInfo, success } = await this.rpc.request({ method: 'eth_getBlockByHash', params: [blockHash, true] });
+      const { result: blockInfo, success } = await this.rpc.request({
+        method: "eth_getBlockByHash",
+        params: [blockHash, true],
+      });
       if (!success) {
-        throw new InternalError('RPC request failed');
+        throw new InternalError("RPC request failed");
       }
       const headerData = headerDataFromWeb3Response(blockInfo);
       const header = new BlockHeader(headerData, { common: this.common });
       if (!header.hash().equals(toBuffer(blockHash))) {
-        throw new InternalError("blockhash doesn't match the blockInfo provided by the RPC");
+        throw new InternalError(
+          "blockhash doesn't match the blockInfo provided by the RPC",
+        );
       }
       this.blockHeaders[blockHash] = header;
     }
     return this.blockHeaders[blockHash];
   };
 
-  this.verifyCodeHash = function(code, codeHash) {
-    return (code === '0x' && codeHash === '0x' + KECCAK256_NULL_S) || Web3.utils.keccak256(code) === codeHash;
+  this.verifyCodeHash = function (code, codeHash) {
+    return (
+      (code === "0x" && codeHash === "0x" + KECCAK256_NULL_S) ||
+      Web3.utils.keccak256(code) === codeHash
+    );
   };
 
-  this.verifyProof = async function(address, storageKeys, stateRoot, proof) {
+  this.verifyProof = async function (address, storageKeys, stateRoot, proof) {
     const trie = new Trie();
     const key = Web3.utils.keccak256(address.toString());
-    const expectedAccountRLP = await trie.verifyProof(stateRoot, toBuffer(key), proof.accountProof.map(a => toBuffer(a)));
+    const expectedAccountRLP = await trie.verifyProof(
+      stateRoot,
+      toBuffer(key),
+      proof.accountProof.map((a) => toBuffer(a)),
+    );
     const account = Account.fromAccountData({
       nonce: BigInt(proof.nonce),
       balance: BigInt(proof.balance),
       storageRoot: proof.storageHash,
-      codeHash: proof.codeHash
+      codeHash: proof.codeHash,
     });
-    const isAccountValid = account.serialize().equals(expectedAccountRLP ? expectedAccountRLP : emptyAccountSerialize);
+    const isAccountValid = account
+      .serialize()
+      .equals(expectedAccountRLP ? expectedAccountRLP : emptyAccountSerialize);
     if (!isAccountValid) return false;
     for (let i = 0; i < storageKeys.length; i++) {
       const sp = proof.storageProof[i];
-      const key = Web3.utils.keccak256(bufferToHex(setLengthLeft(toBuffer(storageKeys[i]), 32)));
-      const expectedStorageRLP = await trie.verifyProof(toBuffer(proof.storageHash), toBuffer(key), sp.proof.map(a => toBuffer(a)));
-      const isStorageValid = (!expectedStorageRLP && sp.value === '0x0') || (!!expectedStorageRLP && expectedStorageRLP.equals(rlp.encode(sp.value)));
+      const key = Web3.utils.keccak256(
+        bufferToHex(setLengthLeft(toBuffer(storageKeys[i]), 32)),
+      );
+      const expectedStorageRLP = await trie.verifyProof(
+        toBuffer(proof.storageHash),
+        toBuffer(key),
+        sp.proof.map((a) => toBuffer(a)),
+      );
+      const isStorageValid =
+        (!expectedStorageRLP && sp.value === "0x0") ||
+        (!!expectedStorageRLP &&
+          expectedStorageRLP.equals(rlp.encode(sp.value)));
       if (!isStorageValid) return false;
     }
     return true;

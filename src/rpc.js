@@ -1,7 +1,7 @@
-import axios from 'axios';
-import * as _ from 'lodash';
-import { REQUEST_BATCH_SIZE } from './constants.js';
-import log from './logger.js';
+import axios from "axios";
+import * as _ from "lodash";
+import { REQUEST_BATCH_SIZE } from "./constants.js";
+import log from "./logger.js";
 
 export class RPC {
   constructor(provider) {
@@ -13,7 +13,7 @@ export class RPC {
       this.provider.unsupportedMethods &&
       this.provider.unsupportedMethods.includes(request.method)
     ) {
-      throw new Error('method not supported by the provider');
+      throw new Error("method not supported by the provider");
     }
     return await this._retryRequest(request);
   }
@@ -21,9 +21,9 @@ export class RPC {
   async requestBatch(requests) {
     if (
       this.provider.unsupportedMethods &&
-      requests.some(r => this.provider.unsupportedMethods.includes(r.method))
+      requests.some((r) => this.provider.unsupportedMethods.includes(r.method))
     ) {
-      throw new Error('method not supported by the provider');
+      throw new Error("method not supported by the provider");
     }
 
     if (this.provider.supportBatchRequests) {
@@ -50,7 +50,7 @@ export class RPC {
   async _retryRequest(request, retry = 5) {
     const rpcRequest = {
       ...request,
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id: this.generateId(),
     };
 
@@ -67,7 +67,7 @@ export class RPC {
         );
       }
     }
-    throw new Error('RPC request failed');
+    throw new Error("RPC request failed");
   }
 
   generateId() {
@@ -75,9 +75,9 @@ export class RPC {
   }
 
   async _retryBatch(requests, retry = 5) {
-    let requestsRaw = requests.map(r => ({
+    let requestsRaw = requests.map((r) => ({
       ...r,
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id: this.generateId(),
     }));
 
@@ -97,7 +97,7 @@ export class RPC {
       requestsLeft = nextRequests;
     }
 
-    const failedRequests = requestsRaw.filter(r => !(r.id in results));
+    const failedRequests = requestsRaw.filter((r) => !(r.id in results));
     if (failedRequests.length > 0) {
       log.error(
         `RPC batch request failed after maximum retries: ${JSON.stringify(
@@ -106,10 +106,10 @@ export class RPC {
           2,
         )}`,
       );
-      throw new Error('RPC request failed');
+      throw new Error("RPC request failed");
     }
 
-    return requestsRaw.map(r => results[r.id]);
+    return requestsRaw.map((r) => results[r.id]);
   }
 
   async _request(requests) {
@@ -119,7 +119,7 @@ export class RPC {
         requests.length === 1 ? requests[0] : requests,
       );
       const results = requests.length === 1 ? [response.data] : response.data;
-      return results.map(r => ({
+      return results.map((r) => ({
         success: !r.error,
         result: r.error || r.result,
       }));

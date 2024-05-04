@@ -1,4 +1,4 @@
-import { InvalidParamsError } from './errors.js';
+import { InvalidParamsError } from "./errors.js";
 
 // Most of the validations are taken from:
 // https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/client/lib/rpc/validation.ts
@@ -14,7 +14,7 @@ export const validators = {
 
     if (!/^[0-9a-fA-F]+$/.test(address) || address.length !== 40) {
       throw new InvalidParamsError(
-        `invalid argument ${index}: invalid address`
+        `invalid argument ${index}: invalid address`,
       );
     }
   },
@@ -23,15 +23,15 @@ export const validators = {
    * hex validator to ensure has `0x` prefix
    */
   hex(params, index) {
-    if (typeof params[index] !== 'string') {
+    if (typeof params[index] !== "string") {
       throw new InvalidParamsError(
-        `invalid argument ${index}: argument must be a hex string`
+        `invalid argument ${index}: argument must be a hex string`,
       );
     }
 
-    if (params[index].substr(0, 2) !== '0x') {
+    if (params[index].substr(0, 2) !== "0x") {
       throw new InvalidParamsError(
-        `invalid argument ${index}: hex string without 0x prefix`
+        `invalid argument ${index}: hex string without 0x prefix`,
       );
     }
   },
@@ -46,7 +46,7 @@ export const validators = {
 
     if (!/^[0-9a-fA-F]+$/.test(blockHash) || blockHash.length !== 64) {
       throw new InvalidParamsError(
-        `invalid argument ${index}: invalid block hash`
+        `invalid argument ${index}: invalid block hash`,
       );
     }
   },
@@ -57,20 +57,20 @@ export const validators = {
   blockOption(params, index) {
     const blockOption = params[index];
 
-    if (typeof blockOption !== 'string') {
+    if (typeof blockOption !== "string") {
       throw new InvalidParamsError(
-        `invalid argument ${index}: argument must be a string`
+        `invalid argument ${index}: argument must be a string`,
       );
     }
 
     try {
-      if (['latest', 'earliest', 'pending'].includes(blockOption)) {
+      if (["latest", "earliest", "pending"].includes(blockOption)) {
         return;
       }
       return this.hex([blockOption], 0);
     } catch (e) {
       throw new InvalidParamsError(
-        `invalid argument ${index}: block option must be a valid hex block number, or "latest", "earliest" or "pending"`
+        `invalid argument ${index}: block option must be a valid hex block number, or "latest", "earliest" or "pending"`,
       );
     }
   },
@@ -79,9 +79,9 @@ export const validators = {
    * bool validator to check if type is boolean
    */
   bool(params, index) {
-    if (typeof params[index] !== 'boolean') {
+    if (typeof params[index] !== "boolean") {
       throw new InvalidParamsError(
-        `invalid argument ${index}: argument is not boolean`
+        `invalid argument ${index}: argument is not boolean`,
       );
     }
   },
@@ -89,10 +89,14 @@ export const validators = {
   /**
    * params length validator
    */
-  paramsLength(params, requiredParamsCount, maxParamsCount = requiredParamsCount) {
+  paramsLength(
+    params,
+    requiredParamsCount,
+    maxParamsCount = requiredParamsCount,
+  ) {
     if (params.length < requiredParamsCount || params.length > maxParamsCount) {
       throw new InvalidParamsError(
-        `missing value for required argument ${params.length}`
+        `missing value for required argument ${params.length}`,
       );
     }
   },
@@ -100,9 +104,9 @@ export const validators = {
   transaction(params, index) {
     const tx = params[index];
 
-    if (typeof tx !== 'object') {
+    if (typeof tx !== "object") {
       throw new InvalidParamsError(
-        `invalid argument ${index}: argument must be an object`
+        `invalid argument ${index}: argument must be an object`,
       );
     }
 

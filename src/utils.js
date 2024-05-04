@@ -4,9 +4,9 @@ import {
   bigIntToHex,
   bufferToHex,
   intToHex,
-} from '@ethereumjs/util';
+} from "@ethereumjs/util";
 
-const isTruthy = val => !!val;
+const isTruthy = (val) => !!val;
 
 export function headerDataFromWeb3Response(blockInfo) {
   return {
@@ -25,7 +25,9 @@ export function headerDataFromWeb3Response(blockInfo) {
     extraData: blockInfo.extraData,
     mixHash: blockInfo.mixHash,
     nonce: blockInfo.nonce,
-    baseFeePerGas: blockInfo.baseFeePerGas ? BigInt(blockInfo.baseFeePerGas) : undefined,
+    baseFeePerGas: blockInfo.baseFeePerGas
+      ? BigInt(blockInfo.baseFeePerGas)
+      : undefined,
     withdrawalsRoot: blockInfo.withdrawalsRoot,
   };
 }
@@ -36,10 +38,16 @@ export function txDataFromWeb3Response(txInfo) {
     data: txInfo.input,
     gasPrice: BigInt(txInfo.gasPrice),
     gasLimit: txInfo.gas,
-    to: isTruthy(txInfo.to) ? setLengthLeft(toBuffer(txInfo.to), 20) : undefined,
+    to: isTruthy(txInfo.to)
+      ? setLengthLeft(toBuffer(txInfo.to), 20)
+      : undefined,
     value: BigInt(txInfo.value),
-    maxFeePerGas: isTruthy(txInfo.maxFeePerGas) ? BigInt(txInfo.maxFeePerGas) : undefined,
-    maxPriorityFeePerGas: isTruthy(txInfo.maxPriorityFeePerGas) ? BigInt(txInfo.maxPriorityFeePerGas) : undefined,
+    maxFeePerGas: isTruthy(txInfo.maxFeePerGas)
+      ? BigInt(txInfo.maxFeePerGas)
+      : undefined,
+    maxPriorityFeePerGas: isTruthy(txInfo.maxPriorityFeePerGas)
+      ? BigInt(txInfo.maxPriorityFeePerGas)
+      : undefined,
   };
 }
 
@@ -75,11 +83,18 @@ export function toJSONRPCTx(tx, block, txIndex) {
   };
 }
 
-export function toJSONRPCBlock(block, totalDifficulty, uncleHeaderHashes, includeTransactions) {
+export function toJSONRPCBlock(
+  block,
+  totalDifficulty,
+  uncleHeaderHashes,
+  includeTransactions,
+) {
   const json = block.toJSON();
   const header = json.header;
   const transactions = block.transactions.map((tx, txIndex) =>
-    includeTransactions ? toJSONRPCTx(tx, block, txIndex) : bufferToHex(tx.hash())
+    includeTransactions
+      ? toJSONRPCTx(tx, block, txIndex)
+      : bufferToHex(tx.hash()),
   );
   return {
     number: header.number,

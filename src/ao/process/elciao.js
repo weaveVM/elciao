@@ -1,3 +1,4 @@
+export const LUA_CODE = `
 local ao = require("ao")
 local json = require("json")
 
@@ -171,3 +172,4 @@ Handlers.add(
         )
     end
 )
+`;
