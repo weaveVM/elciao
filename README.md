@@ -6,7 +6,7 @@
 
 ## Synopsis
 
-elciao is an EVM light client indexer for [ao](https://ao.arweave.dev). It works by feeding a constant stream of EVM data (Ethereum, for this proof of concept) to an ao process, storing all future EVM block metadata and proofs on Arweave in perpituity and making that available natively to other ao processes by default.
+elciao is an EVM light client indexer for [ao](https://ao.arweave.dev). It works by feeding a constant stream of EVM data (Ethereum, for this proof of concept) to an ao process, storing all future EVM block metadata and proofs on Arweave in perpetuity and making that available natively to other ao processes by default.
 
 ## Build & Setup
 
