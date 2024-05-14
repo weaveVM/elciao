@@ -157,7 +157,6 @@ Handlers.add(
         assert(msg.From == Admin, "err_only_admin")
         assert(tonumber(msg.BlockNumber) > tonumber(LatestBlock), "err_invalid_blocks_order")
         assert(tonumber(msg.Slot) > tonumber(LatestSlot), "err_invalid_slot_order")
-        assert(tonumber(msg.BlockNumber) == LatestBlock + 1, "err_invalid_block_seq")
         Blocks[msg.BlockNumber] = msg.Data
         LatestBlock = msg.BlockNumber
         LatestSlot = msg.Slot

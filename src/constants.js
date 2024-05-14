@@ -9,7 +9,7 @@ export const MAX_BLOCK_HISTORY = BigInt(256);
 export const MAX_BLOCK_FUTURE = BigInt(3);
 export const DEFAULT_BLOCK_PARAMETER = "latest";
 // AO constants
-export const APP_VERSION = "0.0.1";
+export const APP_VERSION = "0.0.2";
 export const AO_MODULE = "1PdCJiXhNafpJbvC-sjxWTeNzbf9Q_RfUNs84GYoPm0";
 export const AO_SCHEDULER = "_GQ33BkPtZrqxA84vM8Zk-N2aO0toNNu_C-l-rawrBA";
 export const BEACON_RPC_URL = "https://lodestar-mainnet.chainsafe.io";

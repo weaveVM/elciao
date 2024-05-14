@@ -1,6 +1,6 @@
 {
   "name": "elciao",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Introducing a way to pull EVM data into ao processes, and evolve that into a trustless network",
   "main": "lib/index.js",
   "type": "module",
